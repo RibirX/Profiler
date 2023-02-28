@@ -1,3 +1,6 @@
+mod log_sender;
+mod macros;
+mod wslog;
 #[macro_export]
 macro_rules! error {
   (*$($t:tt)*) => {
