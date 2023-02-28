@@ -1,9 +1,11 @@
+mod layer;
 mod log_writer;
-mod macros;
+mod monitor_item;
 mod wslog;
+
 #[macro_export]
 macro_rules! error {
-  (*$($t:tt)*) => {
+  ($($t:tt)*) => {
     #[cfg(feature= "error")]
     tracing::error!($($t)*)
   };
@@ -11,7 +13,7 @@ macro_rules! error {
 
 #[macro_export]
 macro_rules! error_span {
-  (*$($t:tt)*) => {
+  ($($t:tt)*) => {
     #[cfg(feature= "error")]
     tracing::error_span!($($t)*)
   };
@@ -19,7 +21,7 @@ macro_rules! error_span {
 
 #[macro_export]
 macro_rules! warn {
-  (*$($t:tt)*) => {
+  ($($t:tt)*) => {
     #[cfg(feature= "warn")]
     tracing::warn!($($t)*)
   };
@@ -27,15 +29,23 @@ macro_rules! warn {
 
 #[macro_export]
 macro_rules! warn_span {
-  (*$($t:tt)*) => {
+  ($($t:tt)*) => {
     #[cfg(feature= "warn")]
     tracing::warn_span!($($t)*)
   };
 }
 
 #[macro_export]
+macro_rules! info {
+  ($($t:tt)*) => {
+    #[cfg(feature= "info")]
+    tracing::info!($($t)*)
+  };
+}
+
+#[macro_export]
 macro_rules! info_span {
-  (*$($t:tt)*) => {
+  ($($t:tt)*) => {
     #[cfg(feature= "info")]
     tracing::info_span!($($t)*)
   };
@@ -43,7 +53,7 @@ macro_rules! info_span {
 
 #[macro_export]
 macro_rules! debug {
-  (*$($t:tt)*) => {
+  ($($t:tt)*) => {
     #[cfg(feature= "debug")]
     tracing::debug!($($t)*)
   };
@@ -51,7 +61,7 @@ macro_rules! debug {
 
 #[macro_export]
 macro_rules! debug_span {
-  (*$($t:tt)*) => {
+  ($($t:tt)*) => {
     #[cfg(feature= "debug")]
     tracing::debug_span!($($t)*)
   };
@@ -59,7 +69,7 @@ macro_rules! debug_span {
 
 #[macro_export]
 macro_rules! trace {
-  (*$($t:tt)*) => {
+  ($($t:tt)*) => {
     #[cfg(feature= "trace")]
     tracing::trace!($($t)*)
   };
@@ -67,14 +77,13 @@ macro_rules! trace {
 
 #[macro_export]
 macro_rules! trace_span {
-  (*$($t:tt)*) => {
+  ($($t:tt)*) => {
     #[cfg(feature= "trace")]
     tracing::trace_span!($($t)*)
   };
 }
 
-#[cfg(feature = "info")]
-pub use tracing::instrument;
-
 #[cfg(not(feature = "info"))]
 pub use mock_proc_macros::instrument;
+#[cfg(feature = "info")]
+pub use tracing::instrument;

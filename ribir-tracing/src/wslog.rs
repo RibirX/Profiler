@@ -5,8 +5,7 @@ use serde::Serialize;
 use tungstenite::stream::MaybeTlsStream;
 use tungstenite::{connect, Error, Message, WebSocket};
 
-const SERVER_ADDR: &'static str = "ws://localhost:3012/socket";
-
+const SERVER_ADDR: &'static str = "ws://localhost:31813/socket";
 struct LogWS {
   addr: String,
   socket: Option<WebSocket<MaybeTlsStream<TcpStream>>>,
@@ -33,48 +32,52 @@ impl LogWS {
   }
 }
 
-
 #[cfg(test)]
 mod test {
   use std::{
+    net::TcpListener,
     sync::{Arc, Mutex},
     thread::{self, spawn},
-    time::Duration, net::TcpListener,
+    time::Duration,
   };
 
-  use tungstenite::{Message, accept};
+  use tungstenite::{accept, Message};
 
-use crate::{log_writer::new_log_writer, wslog::{SERVER_ADDR, LogWS}};
+  use crate::{
+    log_writer::new_log_writer,
+    wslog::{LogWS, SERVER_ADDR},
+  };
   fn init_server(recvs: Arc<Mutex<Vec<Message>>>) {
     spawn(move || {
-      let server = TcpListener::bind("127.0.0.1:3012").unwrap();
+      let server = TcpListener::bind("127.0.0.1:31813").unwrap();
       for stream in server.incoming() {
-          let msgs = recvs.clone();
-          spawn(move || {
-              let mut websocket = accept(stream.unwrap()).unwrap();
-              loop {
-                  let msg = websocket.read_message().unwrap();
-                  if msg.is_binary() || msg.is_text() {
-                    msgs.lock().unwrap().push(msg);
-                  }
-              }
-          });
+        let msgs = recvs.clone();
+        spawn(move || {
+          let mut websocket = accept(stream.unwrap()).unwrap();
+          loop {
+            let msg = websocket.read_message().unwrap();
+            if msg.is_binary() || msg.is_text() {
+              msgs.lock().unwrap().push(msg);
+            }
+          }
+        });
       }
-  });
-    
+    });
   }
   #[test]
   fn websocket_log() {
     let recvs: Arc<Mutex<Vec<Message>>> = Arc::new(Mutex::new(vec![]));
     init_server(recvs.clone());
-    let mut consumer = LogWS { addr: SERVER_ADDR.to_string(), socket: None };
+    let mut consumer = LogWS {
+      addr: SERVER_ADDR.to_string(),
+      socket: None,
+    };
     consumer.listen();
     let (mut logger, mut consumers) = new_log_writer();
     consumers.add(Box::new(move |vals| consumer.send_to_remote(vals).unwrap()));
-    
+
     logger.write(0);
     thread::sleep(Duration::from_millis(20));
     assert!(recvs.lock().unwrap().len() == 1);
   }
 }
-
