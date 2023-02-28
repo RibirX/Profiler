@@ -1,0 +1,10 @@
+[package]
+edition = "2021"
+name = "mock-proc-macros"
+version = "0.0.0"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+tracing-attributes = "0.1.23"

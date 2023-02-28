@@ -2,11 +2,6 @@
 [workspace]
 members = [
   "ribir-profiler",
-  "ribir-profiler-client",
+  "ribir-tracing",
+  "mock-proc-macros",
 ]
-
-[profile.bench]
-debug = true
-
-[profile.release]
-debug = true

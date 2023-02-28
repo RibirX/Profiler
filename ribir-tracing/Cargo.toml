@@ -1,16 +1,18 @@
 [package]
 edition = "2021"
 name = "ribir-profiler-client"
-version = "0.1.0"
+version = "0.0.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+mock-proc-macros = {path = "../mock-proc-macros", version = "0.0.0"}
 tracing = "0.1.37"
 tracing-subscriber = {version = "0.3.16", default-features = false}
 
 [features]
 debug = ["error", "warn", "info"]
+default = ["warn"]
 error = []
 info = ["error", "warn"]
 trace = ["error", "warn", "info", "debug"]
