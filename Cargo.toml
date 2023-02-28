@@ -1,0 +1,12 @@
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[workspace]
+members = [
+  "ribir-profiler",
+  "ribir-profiler-client",
+]
+
+[profile.bench]
+debug = true
+
+[profile.release]
+debug = true
