@@ -1,4 +1,4 @@
-mod log_sender;
+mod log_writer;
 mod macros;
 mod wslog;
 #[macro_export]
