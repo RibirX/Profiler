@@ -33,7 +33,7 @@ pub struct FieldValue {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(bound(deserialize = "'de: 'static"))]
+#[serde(bound(deserialize = "Meta: Deserialize<'de>, FieldValue: Deserialize<'de>"))]
 pub enum MonitorMsg {
   Event {
     meta: Meta,
@@ -50,8 +50,7 @@ pub enum MonitorMsg {
   },
   SpanUpdate {
     id: u64,
-    meta: Meta,
-    updated: Box<[FieldValue]>,
+    changes: Box<[FieldValue]>,
     time_stamp: Duration,
   },
   EnterSpan {
