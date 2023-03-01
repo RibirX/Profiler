@@ -1,6 +1,6 @@
 use std::time::{Duration, Instant};
 
-use crate::monitor_item::{FieldValue, Meta, MonitorItem};
+use monitor_msg::{FieldValue, Meta, MonitorMsg};
 use tracing::{field::*, span::*, Event, Metadata, Subscriber};
 use tracing_subscriber::{layer::Context, Layer};
 
@@ -22,7 +22,7 @@ where
     };
     event.record(&mut fields);
 
-    let event = MonitorItem::Event {
+    let event = MonitorMsg::Event {
       meta,
       parent_span: event.parent().map(Id::into_u64),
       fields: fields.data(),
@@ -40,7 +40,7 @@ where
     };
     attrs.record(&mut fields);
 
-    let span = MonitorItem::NewSpan {
+    let span = MonitorMsg::NewSpan {
       id: id.into_u64(),
       meta,
       parent_span: attrs.parent().map(Id::into_u64),
@@ -51,11 +51,17 @@ where
 
   fn on_record(&self, _span: &Id, _values: &Record<'_>, _ctx: Context<'_, S>) {}
 
-  fn on_enter(&self, _id: &Id, _ctx: Context<'_, S>) {}
+  fn on_enter(&self, _id: &Id, _ctx: Context<'_, S>) {
+    println!("enter {_id:?}");
+  }
 
-  fn on_exit(&self, _id: &Id, _ctx: Context<'_, S>) {}
+  fn on_exit(&self, _id: &Id, _ctx: Context<'_, S>) {
+    println!("exit {_id:?}");
+  }
 
-  fn on_close(&self, _id: Id, _ctx: Context<'_, S>) {}
+  fn on_close(&self, _id: Id, _ctx: Context<'_, S>) {
+    println!("close {_id:?}");
+  }
 }
 
 fn record_meta_data(data: &Metadata) -> Meta {
@@ -71,7 +77,7 @@ fn record_meta_data(data: &Metadata) -> Meta {
 
 struct FieldsVisitor {
   fields: Vec<FieldValue>,
-  error_writer: Box<dyn FnMut(MonitorItem)>,
+  error_writer: Box<dyn FnMut(MonitorMsg)>,
 }
 
 impl Visit for FieldsVisitor {
@@ -85,7 +91,7 @@ impl Visit for FieldsVisitor {
         self.fields.push(fv);
       }
       Err(e) => {
-        (self.error_writer)(MonitorItem::MonitorError(e.to_string()));
+        (self.error_writer)(MonitorMsg::MonitorError(e.to_string()));
       }
     }
   }
@@ -159,7 +165,6 @@ mod tests {
 
     use valuable::Valuable;
     error!(snapshot = vec!["xxx", "yyy"].as_value(), name = "xxx");
-    error_span!("error span start", v = 1.0);
     panic!("xxx");
   }
 }

@@ -34,7 +34,7 @@ pub struct FieldValue {
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(bound(deserialize = "'de: 'static"))]
-pub enum MonitorItem {
+pub enum MonitorMsg {
   Event {
     meta: Meta,
     parent_span: Option<u64>,
