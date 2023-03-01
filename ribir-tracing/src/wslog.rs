@@ -1,18 +1,17 @@
+use monitor_msg::MonitorMsg;
 use std::net::TcpStream;
+use tungstenite::stream::MaybeTlsStream;
+use tungstenite::{connect, Message, WebSocket};
 use url::Url;
 
-use serde::Serialize;
-use tungstenite::stream::MaybeTlsStream;
-use tungstenite::{connect, Error, Message, WebSocket};
-
 const SERVER_ADDR: &'static str = "ws://localhost:31813/socket";
-struct LogWS {
+pub struct LogWS {
   addr: String,
   socket: Option<WebSocket<MaybeTlsStream<TcpStream>>>,
 }
 
 impl LogWS {
-  fn listen(&mut self) -> bool {
+  pub fn listen(&mut self) -> bool {
     if self.socket.is_none() {
       self.socket = connect(Url::parse(&self.addr).unwrap())
         .ok()
@@ -22,7 +21,7 @@ impl LogWS {
   }
 
   #[inline]
-  fn send_to_remote<T: Serialize>(&mut self, vals: &[T]) -> Result<(), tungstenite::Error> {
+  pub fn send_to_remote(&mut self, vals: &[MonitorMsg]) -> Result<(), tungstenite::Error> {
     if let Some(socket) = &mut self.socket {
       for val in vals {
         socket.write_message(Message::Binary(bincode::serialize(&val).unwrap()))?
@@ -30,6 +29,8 @@ impl LogWS {
     }
     Ok(())
   }
+
+  // todo read_message
 }
 
 #[cfg(test)]
@@ -41,6 +42,7 @@ mod test {
     time::Duration,
   };
 
+  use monitor_msg::MonitorMsg;
   use tungstenite::{accept, Message};
 
   use crate::{
@@ -76,7 +78,7 @@ mod test {
     let (mut logger, mut consumers) = new_log_writer();
     consumers.add(Box::new(move |vals| consumer.send_to_remote(vals).unwrap()));
 
-    logger.write(0);
+    logger.write(MonitorMsg::MonitorError("test".to_string()));
     thread::sleep(Duration::from_millis(20));
     assert!(recvs.lock().unwrap().len() == 1);
   }

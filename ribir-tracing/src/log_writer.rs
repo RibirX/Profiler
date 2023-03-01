@@ -1,21 +1,22 @@
-use serde::Serialize;
+use cortex_m::singleton;
+use monitor_msg::MonitorMsg;
 use std::sync::mpsc::{Receiver, Sender};
 use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
 const LOG_COLLECT_INTERVAL_MS: u64 = 10;
-type LogConsumeFn<T> = dyn for<'a> FnMut(&'a [T]) + Send;
+type LogConsumeFn = dyn for<'a> FnMut(&'a [MonitorMsg]) + Send;
 
-pub struct RLogWriter<T> {
-  sender: Sender<T>,
+pub struct RLogWriter {
+  sender: Sender<MonitorMsg>,
 }
 
-impl<T: Send> RLogWriter<T> {
-  pub fn write(&mut self, data: T) { self.sender.send(data).unwrap() }
+impl RLogWriter {
+  pub fn write(&mut self, data: MonitorMsg) { self.sender.send(data).unwrap() }
 }
 
-impl<T> Clone for RLogWriter<T> {
+impl Clone for RLogWriter {
   fn clone(&self) -> Self { Self { sender: self.sender.clone() } }
 }
 
@@ -30,16 +31,16 @@ impl LogConsumeHandle {
   pub fn close(&self) { *self.closed.lock().unwrap() = true; }
 }
 #[derive(Default)]
-pub struct RLogConsumers<T> {
-  consumers: Arc<Mutex<Vec<(LogConsumeHandle, Box<LogConsumeFn<T>>)>>>,
+pub struct RLogConsumers {
+  consumers: Arc<Mutex<Vec<(LogConsumeHandle, Box<LogConsumeFn>)>>>,
 }
 
-impl<T> Clone for RLogConsumers<T> {
+impl Clone for RLogConsumers {
   fn clone(&self) -> Self { Self { consumers: self.consumers.clone() } }
 }
 
-impl<T: Serialize> RLogConsumers<T> {
-  pub fn add(&mut self, call: Box<LogConsumeFn<T>>) -> LogConsumeHandle {
+impl RLogConsumers {
+  pub fn add(&mut self, call: Box<LogConsumeFn>) -> LogConsumeHandle {
     let handle = LogConsumeHandle { closed: Arc::new(Mutex::new(false)) };
     {
       let mut consumers = self.consumers.lock().unwrap();
@@ -48,7 +49,7 @@ impl<T: Serialize> RLogConsumers<T> {
     handle
   }
 
-  fn consume(&mut self, vals: &[T]) {
+  fn consume(&mut self, vals: &[MonitorMsg]) {
     if let Ok(mut consumers) = self.consumers.lock() {
       consumers.iter_mut().for_each(|(h, call_fn)| {
         if !h.is_closed() {
@@ -63,11 +64,13 @@ impl<T: Serialize> RLogConsumers<T> {
   }
 }
 
-pub fn new_log_writer<T: 'static + Send + Serialize>() -> (RLogWriter<T>, RLogConsumers<T>) {
-  fn recv<T: Serialize>(mut consumers: RLogConsumers<T>, rx: Receiver<T>) {
+pub(crate) fn new_log_writer() -> (RLogWriter, RLogConsumers) {
+  fn recv(mut consumers: RLogConsumers, rx: Receiver<MonitorMsg>) {
     loop {
       let vals: Vec<_> = rx.try_iter().collect();
-      consumers.consume(&vals);
+      if !vals.is_empty() {
+        consumers.consume(&vals);
+      }
       thread::sleep(Duration::from_millis(LOG_COLLECT_INTERVAL_MS));
     }
   }
@@ -82,6 +85,12 @@ pub fn new_log_writer<T: 'static + Send + Serialize>() -> (RLogWriter<T>, RLogCo
   (writer, consumers)
 }
 
+pub fn singleton() -> &'static mut (RLogWriter, RLogConsumers) {
+  singleton!(: (RLogWriter, RLogConsumers) = new_log_writer()).unwrap()
+}
+
+pub fn logger() -> RLogWriter { singleton().0.clone() }
+
 #[cfg(test)]
 mod test {
   use std::{
@@ -90,25 +99,34 @@ mod test {
     time::Duration,
   };
 
+  use monitor_msg::MonitorMsg;
+
   use crate::log_writer::new_log_writer;
   #[test]
   fn log_sender() {
     let logs = Arc::new(Mutex::new(vec![]));
-    let consume = |logs: Arc<Mutex<Vec<i32>>>| {
-      move |vals: &[i32]| {
+    let consume = |logs: Arc<Mutex<Vec<usize>>>| {
+      move |vals: &[MonitorMsg]| {
         if let Ok(mut logs) = logs.lock() {
-          for val in vals {
-            logs.push(*val);
-          }
+          logs.push(vals.len());
         }
       }
     };
     let (logger, mut consumers) = new_log_writer();
     consumers.add(Box::new(consume(logs.clone())));
-    consumers.add(Box::new(consume(logs.clone())));
-    logger.sender.send(0).unwrap();
-
+    logger
+      .sender
+      .send(MonitorMsg::MonitorError("test".to_string()))
+      .unwrap();
     thread::sleep(Duration::from_millis(20));
-    assert!(logs.lock().unwrap().len() == 2);
+    assert!(logs.lock().unwrap().len() == 1);
+
+    consumers.add(Box::new(consume(logs.clone())));
+    logger
+      .sender
+      .send(MonitorMsg::MonitorError("test".to_string()))
+      .unwrap();
+    thread::sleep(Duration::from_millis(20));
+    assert!(logs.lock().unwrap().len() == 3);
   }
 }
