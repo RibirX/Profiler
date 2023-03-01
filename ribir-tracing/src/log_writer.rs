@@ -1,24 +1,11 @@
-use cortex_m::singleton;
+use crossbeam_channel::{Sender, Receiver, unbounded};
 use monitor_msg::MonitorMsg;
-use std::sync::mpsc::{Receiver, Sender};
-use std::sync::{mpsc, Arc, Mutex};
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
 const LOG_COLLECT_INTERVAL_MS: u64 = 10;
 type LogConsumeFn = dyn for<'a> FnMut(&'a [MonitorMsg]) + Send;
-
-pub struct RLogWriter {
-  sender: Sender<MonitorMsg>,
-}
-
-impl RLogWriter {
-  pub fn write(&mut self, data: MonitorMsg) { self.sender.send(data).unwrap() }
-}
-
-impl Clone for RLogWriter {
-  fn clone(&self) -> Self { Self { sender: self.sender.clone() } }
-}
 
 #[derive(Clone)]
 pub struct LogConsumeHandle {
@@ -64,7 +51,7 @@ impl RLogConsumers {
   }
 }
 
-pub(crate) fn new_log_writer() -> (RLogWriter, RLogConsumers) {
+pub(crate) fn new_log_writer() -> (Sender<MonitorMsg>, RLogConsumers) {
   fn recv(mut consumers: RLogConsumers, rx: Receiver<MonitorMsg>) {
     loop {
       let vals: Vec<_> = rx.try_iter().collect();
@@ -75,21 +62,14 @@ pub(crate) fn new_log_writer() -> (RLogWriter, RLogConsumers) {
     }
   }
 
-  let (sx, rx) = mpsc::channel();
-  let writer = RLogWriter { sender: sx };
+  let (sx, rx) = unbounded();
   let consumers = RLogConsumers {
     consumers: Arc::new(Mutex::new(vec![])),
   };
   let consumers2 = consumers.clone();
   thread::spawn(move || recv(consumers2, rx));
-  (writer, consumers)
+  (sx, consumers)
 }
-
-pub fn singleton() -> &'static mut (RLogWriter, RLogConsumers) {
-  singleton!(: (RLogWriter, RLogConsumers) = new_log_writer()).unwrap()
-}
-
-pub fn logger() -> RLogWriter { singleton().0.clone() }
 
 #[cfg(test)]
 mod test {
@@ -112,18 +92,16 @@ mod test {
         }
       }
     };
-    let (logger, mut consumers) = new_log_writer();
+    let (sender, mut consumers) = new_log_writer();
     consumers.add(Box::new(consume(logs.clone())));
-    logger
-      .sender
+    sender
       .send(MonitorMsg::MonitorError("test".to_string()))
       .unwrap();
     thread::sleep(Duration::from_millis(20));
     assert!(logs.lock().unwrap().len() == 1);
 
     consumers.add(Box::new(consume(logs.clone())));
-    logger
-      .sender
+    sender
       .send(MonitorMsg::MonitorError("test".to_string()))
       .unwrap();
     thread::sleep(Duration::from_millis(20));

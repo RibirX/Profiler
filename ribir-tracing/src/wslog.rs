@@ -75,10 +75,10 @@ mod test {
       socket: None,
     };
     consumer.listen();
-    let (mut logger, mut consumers) = new_log_writer();
+    let (sender, mut consumers) = new_log_writer();
     consumers.add(Box::new(move |vals| consumer.send_to_remote(vals).unwrap()));
 
-    logger.write(MonitorMsg::MonitorError("test".to_string()));
+    sender.send(MonitorMsg::MonitorError("test".to_string())).unwrap();
     thread::sleep(Duration::from_millis(20));
     assert!(recvs.lock().unwrap().len() == 1);
   }
