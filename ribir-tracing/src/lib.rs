@@ -82,7 +82,26 @@ macro_rules! trace_span {
   }};
 }
 
+use layer::MonitorLayer;
 #[cfg(not(feature = "info"))]
 pub use mock_proc_macros::instrument;
 #[cfg(feature = "info")]
 pub use tracing::instrument;
+
+pub struct WSHandle;
+
+/// This function returns a tuple containing two parts:
+///   - a new monitor layer of `tracing_subscriber`, use it to init a tracing subscriber so the monitor can capture the spans and events.
+///   - a handle of WebSocket to control the connection from your application to the monitor. You can use it to config the connection. The connection will not be created by default, you should call the `connect` method to create the connection by yourself.
+/// # Example
+///
+/// ```rust
+/// let (subscriber, ws_handle) = new_monitor_subscriber();
+/// tracing_subscriber::registry().with(subscriber).init();
+/// // In practice, maybe you want connect in an async way, use `connect`.
+/// ws_handle.block_connect();
+/// ```
+///
+pub fn new_monitor_subscriber() -> (MonitorLayer, WSHandle) {
+  todo!();
+}
