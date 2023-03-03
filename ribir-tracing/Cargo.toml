@@ -12,7 +12,7 @@ crossbeam-channel = "0.5.7"
 mock-proc-macros = {path = "../mock-proc-macros", version = "0.0.0"}
 monitor-msg = {path = "../monitor-msg", version = "0.0.0"}
 serde = {version = "1.0.152", features = ["derive"]}
-tracing = {version = "0.1.29", default-features = false, features = ["valuable"]}
+tracing = {version = "0.1.29", default-features = false, features = ["valuable", "attributes"]}
 tracing-subscriber = {version = "0.3.16", default-features = false}
 tungstenite = "0.18.0"
 url = "2.3.1"

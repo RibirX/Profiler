@@ -28,11 +28,11 @@ impl<S> Layer<S> for MonitorLayer
 where
   S: Subscriber,
 {
-  fn on_event(&self, event: &Event, _: Context<S>) {
+  fn on_event(&self, event: &Event, ctx: Context<S>) {
     let (time_stamp, meta, fields) = base_visit!(self, event);
     let event = MonitorMsg::Event {
       meta,
-      parent_span: event.parent().map(Id::into_u64),
+      parent_span: ctx.current_span().id().map(Id::into_u64),
       fields,
       time_stamp,
     };
@@ -234,19 +234,19 @@ mod tests {
 
     assert!(matches!(&msgs[1], MonitorMsg::EnterSpan { .. }));
 
-    let MonitorMsg::NewSpan {
-      meta: Meta { name: "inner span", .. },
-      parent_span: inner_parent,
-      ..
-    } = &msgs[2] else {
-      panic!();
+    assert!(matches!(
+      &msgs[2],
+      MonitorMsg::NewSpan {
+        meta: Meta { name: "inner span", .. },
+        ..
+      }
+    ));
+    let MonitorMsg::Event {parent_span,  .. } = &msgs[3]  else {
+      panic!()
     };
-
-    assert!(matches!(&msgs[3], MonitorMsg::Event { .. }));
     assert!(matches!(&msgs[4], MonitorMsg::CloseSpan { .. }));
     assert!(matches!(&msgs[5], MonitorMsg::ExitSpan { .. }));
     assert!(matches!(&msgs[6], MonitorMsg::CloseSpan { .. }));
-
-    assert_eq!(&Some(*outside_id), inner_parent);
+    assert_eq!(&Some(*outside_id), parent_span);
   }
 }
