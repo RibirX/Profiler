@@ -1,17 +1,17 @@
-use std::time::Duration;
+use std::{time::Duration, borrow::Cow};
 
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Meta {
   /// The name of the span described by this metadata.
-  pub name: &'static str,
+  pub name: Cow<'static, str>,
   /// The part of the system that the span that this metadata describes
   /// occurred in.
   pub target: String,
 
   /// The level of verbosity of the described span.
-  pub level: &'static str,
+  pub level: Cow<'static, str>,
 
   /// The name of the Rust module where the span occurred, or `None` if this
   /// could not be determined.
@@ -28,7 +28,7 @@ pub struct Meta {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FieldValue {
-  field: &'static str,
+  field: Cow<'static, str>,
   data: Box<[u8]>,
 }
 
@@ -73,6 +73,6 @@ pub enum MonitorMsg {
 
 impl FieldValue {
   pub fn new(field: &'static str, data: Box<[u8]>) -> Self {
-    Self { field, data }
+    Self { field: Cow::Borrowed(field), data }
   }
 }

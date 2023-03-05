@@ -1,6 +1,9 @@
 use crossbeam_channel::Sender;
 use monitor_msg::{FieldValue, Meta, MonitorMsg};
-use std::time::{Duration, Instant};
+use std::{
+  borrow::Cow,
+  time::{Duration, Instant},
+};
 use tracing::{field::*, span::*, Event, Metadata, Subscriber};
 use tracing_subscriber::{layer::Context, Layer};
 
@@ -96,9 +99,9 @@ where
 
 fn record_meta_data(data: &Metadata) -> Meta {
   Meta {
-    name: data.name(),
+    name: Cow::Borrowed(data.name()),
     target: data.target().to_string(),
-    level: data.level().as_str(),
+    level: Cow::Borrowed(data.level().as_str()),
     module_path: data.module_path().map(ToString::to_string),
     file: data.file().map(ToString::to_string),
     line: data.line(),
@@ -127,39 +130,25 @@ impl Visit for FieldsVisitor {
   }
 
   #[inline]
-  fn record_f64(&mut self, field: &Field, value: f64) {
-    self.record_value(field, value.into())
-  }
+  fn record_f64(&mut self, field: &Field, value: f64) { self.record_value(field, value.into()) }
 
   #[inline]
-  fn record_i64(&mut self, field: &Field, value: i64) {
-    self.record_value(field, value.into())
-  }
+  fn record_i64(&mut self, field: &Field, value: i64) { self.record_value(field, value.into()) }
 
   #[inline]
-  fn record_u64(&mut self, field: &Field, value: u64) {
-    self.record_value(field, value.into())
-  }
+  fn record_u64(&mut self, field: &Field, value: u64) { self.record_value(field, value.into()) }
 
   #[inline]
-  fn record_i128(&mut self, field: &Field, value: i128) {
-    self.record_value(field, value.into())
-  }
+  fn record_i128(&mut self, field: &Field, value: i128) { self.record_value(field, value.into()) }
 
   #[inline]
-  fn record_u128(&mut self, field: &Field, value: u128) {
-    self.record_value(field, value.into())
-  }
+  fn record_u128(&mut self, field: &Field, value: u128) { self.record_value(field, value.into()) }
 
   #[inline]
-  fn record_bool(&mut self, field: &Field, value: bool) {
-    self.record_value(field, value.into())
-  }
+  fn record_bool(&mut self, field: &Field, value: bool) { self.record_value(field, value.into()) }
 
   #[inline]
-  fn record_str(&mut self, field: &Field, value: &str) {
-    self.record_value(field, value.into())
-  }
+  fn record_str(&mut self, field: &Field, value: &str) { self.record_value(field, value.into()) }
 
   #[inline]
   fn record_debug(&mut self, field: &Field, value: &dyn std::fmt::Debug) {
@@ -168,9 +157,7 @@ impl Visit for FieldsVisitor {
 }
 
 impl FieldsVisitor {
-  fn data(self) -> Box<[FieldValue]> {
-    self.fields.into_boxed_slice()
-  }
+  fn data(self) -> Box<[FieldValue]> { self.fields.into_boxed_slice() }
 }
 
 impl MonitorLayer {
@@ -182,9 +169,7 @@ impl MonitorLayer {
   }
 
   #[inline]
-  fn time_stamp(&self) -> Duration {
-    Instant::now().duration_since(self.start_time)
-  }
+  fn time_stamp(&self) -> Duration { Instant::now().duration_since(self.start_time) }
 
   fn send_msg(&self, msg: MonitorMsg) {
     if self.msg_sender.send(msg).is_err() {
@@ -195,6 +180,8 @@ impl MonitorLayer {
 
 #[cfg(test)]
 mod tests {
+
+  use std::borrow::Cow;
 
   use super::*;
   use crate::*;
@@ -226,7 +213,7 @@ mod tests {
     assert_eq!(msgs.len(), 7);
     let MonitorMsg::NewSpan {
       id: outside_id,
-      meta: Meta { name: "outside span", .. },
+      meta: Meta { name: Cow::Borrowed("outside span"), .. },
       ..
     } = &msgs[0] else {
       panic!();
@@ -237,7 +224,7 @@ mod tests {
     assert!(matches!(
       &msgs[2],
       MonitorMsg::NewSpan {
-        meta: Meta { name: "inner span", .. },
+        meta: Meta { name: Cow::Borrowed("inner span"), .. },
         ..
       }
     ));
