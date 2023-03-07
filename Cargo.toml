@@ -5,3 +5,5 @@ members = [
   "ribir-tracing",
   "mock-proc-macros",
 ]
+
+resolver = "2"

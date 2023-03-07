@@ -1,8 +1,10 @@
-use std::{
-  thread::{sleep, spawn},
-};
+pub(crate) mod client_infos_store;
+mod monitor;
+
+use std::thread::{sleep, spawn};
 
 use io::net::run;
+
 fn main() {
   let handle = spawn(|| {
     tokio::runtime::Builder::new_current_thread()
@@ -13,5 +15,7 @@ fn main() {
         // tokio::spawn(future)
       }))
   });
-  handle.join().expect("Couldn't join on the associated thread");
+  handle
+    .join()
+    .expect("Couldn't join on the associated thread");
 }

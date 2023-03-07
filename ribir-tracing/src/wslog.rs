@@ -30,14 +30,17 @@ impl LogWS {
         .unwrap()
     }
 
-    fn handle_err(socket: &mut WebSocket<MaybeTlsStream<TcpStream>>, e: tungstenite::Error) -> Result<(), tungstenite::Error> {
+    fn handle_err(
+      socket: &mut WebSocket<MaybeTlsStream<TcpStream>>,
+      e: tungstenite::Error,
+    ) -> Result<(), tungstenite::Error> {
       match e {
         tungstenite::Error::SendQueueFull(msg) => socket
           .write_pending()
           .and_then(|_| socket.write_message(msg)),
         tungstenite::Error::Capacity(_) => socket.write_message(Message::Binary(encode(
-            &MonitorMsg::MonitorError(e.to_string()),
-          ))),
+          &MonitorMsg::MonitorError(e.to_string()),
+        ))),
         _ => Err(e),
       }
     }
@@ -60,7 +63,7 @@ impl LogWS {
               println!("write_message faield {}", err.to_string());
             }
             res
-        })
+          })
       })
   }
 
@@ -119,7 +122,7 @@ mod test {
         id: 1,
         time_stamp: Duration::from_secs(2),
       })
-      .unwrap(); 
+      .unwrap();
     thread::sleep(Duration::from_millis(20));
     assert!(recvs.lock().unwrap().len() == 1);
   }

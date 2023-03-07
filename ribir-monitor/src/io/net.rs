@@ -1,6 +1,6 @@
 use crossbeam::channel::Receiver;
-use futures_util::StreamExt;
 use futures_util::stream::SplitSink;
+use futures_util::StreamExt;
 use monitor_msg::MonitorMsg;
 use std::cell::RefCell;
 use std::net::SocketAddr;

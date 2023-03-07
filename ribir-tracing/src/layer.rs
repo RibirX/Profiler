@@ -1,5 +1,5 @@
 use crossbeam_channel::Sender;
-use monitor_msg::{FieldValue, Meta, MonitorMsg};
+use monitor_msg::{FieldValue, Fields, Meta, MonitorMsg};
 use std::{
   borrow::Cow,
   time::{Duration, Instant},
@@ -8,6 +8,7 @@ use tracing::{field::*, span::*, Event, Metadata, Subscriber};
 use tracing_subscriber::{layer::Context, Layer};
 
 pub struct MonitorLayer {
+  /// The monitor starts at.
   start_time: Instant,
   msg_sender: Sender<MonitorMsg>,
 }
@@ -31,23 +32,25 @@ impl<S> Layer<S> for MonitorLayer
 where
   S: Subscriber,
 {
-  fn on_event(&self, event: &Event, ctx: Context<S>) {
-    let (time_stamp, meta, fields) = base_visit!(self, event);
-    let event = MonitorMsg::Event {
-      meta,
-      parent_span: ctx.current_span().id().map(Id::into_u64),
-      fields,
-      time_stamp,
-    };
+  fn on_event(&self, event: &Event, _: Context<S>) {
+    let time_stamp = self.time_stamp();
+    let meta = record_meta_data(event.metadata());
+    let mut fields = Fields::default();
+    event.record(&mut fields);
+
+    let event = MonitorMsg::Event { meta, fields, time_stamp };
     self.send_msg(event);
   }
 
   fn on_new_span(&self, attrs: &Attributes, id: &Id, _: Context<S>) {
-    let (time_stamp, meta, fields) = base_visit!(self, attrs);
+    let time_stamp = self.time_stamp();
+    let meta = record_meta_data(attrs.metadata());
+    let mut fields = Fields::default();
+    attrs.record(&mut fields);
+
     let span = MonitorMsg::NewSpan {
       id: id.into_u64(),
       meta,
-      parent_span: attrs.parent().map(Id::into_u64),
       fields,
       time_stamp,
     };
@@ -56,18 +59,11 @@ where
 
   fn on_record(&self, span: &Id, values: &Record<'_>, _: Context<'_, S>) {
     let time_stamp = self.time_stamp();
-    let mut visitor = FieldsVisitor {
-      fields: vec![],
-      error_writer: Box::new(|_| {}),
-    };
-    values.record(&mut visitor);
+    let mut fields = Fields::default();
+    values.record(&mut fields);
 
     let id = span.into_u64();
-    let record = MonitorMsg::SpanUpdate {
-      id,
-      changes: visitor.data(),
-      time_stamp,
-    };
+    let record = MonitorMsg::SpanUpdate { id, changes: fields, time_stamp };
     self.send_msg(record);
   }
 
@@ -106,58 +102,6 @@ fn record_meta_data(data: &Metadata) -> Meta {
     file: data.file().map(ToString::to_string),
     line: data.line(),
   }
-}
-
-struct FieldsVisitor {
-  fields: Vec<FieldValue>,
-  error_writer: Box<dyn FnMut(MonitorMsg)>,
-}
-
-impl Visit for FieldsVisitor {
-  fn record_value(&mut self, field: &Field, value: valuable::Value<'_>) {
-    let value = valuable_serde::Serializable::new(value);
-    let data = bincode::serialize(&value);
-
-    match data {
-      Ok(data) => {
-        let fv = FieldValue::new(field.name(), data.into_boxed_slice());
-        self.fields.push(fv);
-      }
-      Err(e) => {
-        (self.error_writer)(MonitorMsg::MonitorError(e.to_string()));
-      }
-    }
-  }
-
-  #[inline]
-  fn record_f64(&mut self, field: &Field, value: f64) { self.record_value(field, value.into()) }
-
-  #[inline]
-  fn record_i64(&mut self, field: &Field, value: i64) { self.record_value(field, value.into()) }
-
-  #[inline]
-  fn record_u64(&mut self, field: &Field, value: u64) { self.record_value(field, value.into()) }
-
-  #[inline]
-  fn record_i128(&mut self, field: &Field, value: i128) { self.record_value(field, value.into()) }
-
-  #[inline]
-  fn record_u128(&mut self, field: &Field, value: u128) { self.record_value(field, value.into()) }
-
-  #[inline]
-  fn record_bool(&mut self, field: &Field, value: bool) { self.record_value(field, value.into()) }
-
-  #[inline]
-  fn record_str(&mut self, field: &Field, value: &str) { self.record_value(field, value.into()) }
-
-  #[inline]
-  fn record_debug(&mut self, field: &Field, value: &dyn std::fmt::Debug) {
-    self.record_value(field, valuable::Value::String(&format!("{value:?}")));
-  }
-}
-
-impl FieldsVisitor {
-  fn data(self) -> Box<[FieldValue]> { self.fields.into_boxed_slice() }
 }
 
 impl MonitorLayer {
@@ -224,16 +168,16 @@ mod tests {
     assert!(matches!(
       &msgs[2],
       MonitorMsg::NewSpan {
-        meta: Meta { name: Cow::Borrowed("inner span"), .. },
+        meta: Meta {
+          name: Cow::Borrowed("inner span"),
+          ..
+        },
         ..
       }
     ));
-    let MonitorMsg::Event {parent_span,  .. } = &msgs[3]  else {
-      panic!()
-    };
+
     assert!(matches!(&msgs[4], MonitorMsg::CloseSpan { .. }));
     assert!(matches!(&msgs[5], MonitorMsg::ExitSpan { .. }));
     assert!(matches!(&msgs[6], MonitorMsg::CloseSpan { .. }));
-    assert_eq!(&Some(*outside_id), parent_span);
   }
 }

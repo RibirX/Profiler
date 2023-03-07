@@ -1,4 +1,4 @@
-use crossbeam_channel::{Sender, Receiver, unbounded};
+use crossbeam_channel::{unbounded, Receiver, Sender};
 use monitor_msg::MonitorMsg;
 use std::sync::{Arc, Mutex};
 use std::thread;

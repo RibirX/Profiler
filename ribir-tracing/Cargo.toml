@@ -1,6 +1,6 @@
 [package]
 edition = "2021"
-name = "ribir-profiler-client"
+name = "ribir-tracing"
 version = "0.0.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -12,12 +12,10 @@ crossbeam-channel = "0.5.7"
 mock-proc-macros = {path = "../mock-proc-macros", version = "0.0.0"}
 monitor-msg = {path = "../monitor-msg", version = "0.0.0"}
 serde = {version = "1.0.152", features = ["derive"]}
-tracing = {version = "0.1.29", default-features = false, features = ["valuable", "attributes"]}
+tracing = {version = "0.1.29", default-features = false, features = ["attributes"]}
 tracing-subscriber = {version = "0.3.16", default-features = false}
 tungstenite = "0.18.0"
 url = "2.3.1"
-valuable = "0.1.0"
-valuable-serde = "0.1.0"
 
 [dev-dependencies.tracing-subscriber]
 features = ["registry", "fmt"]

@@ -2,6 +2,7 @@ mod layer;
 mod log_writer;
 
 mod wslog;
+
 #[macro_export]
 macro_rules! error {
   ($($t:tt)*) => {{
@@ -91,8 +92,12 @@ pub use tracing::instrument;
 pub struct WSHandle;
 
 /// This function returns a tuple containing two parts:
-///   - a new monitor layer of `tracing_subscriber`, use it to init a tracing subscriber so the monitor can capture the spans and events.
-///   - a handle of WebSocket to control the connection from your application to the monitor. You can use it to config the connection. The connection will not be created by default, you should call the `connect` method to create the connection by yourself.
+///   - a new monitor layer of `tracing_subscriber`, use it to init a tracing
+///     subscriber so the monitor can capture the spans and events.
+///   - a handle of WebSocket to control the connection from your application to
+///     the monitor. You can use it to config the connection. The connection
+///     will not be created by default, you should call the `connect` method to
+///     create the connection by yourself.
 /// # Example
 ///
 /// ```rust
@@ -101,7 +106,6 @@ pub struct WSHandle;
 /// // In practice, maybe you want connect in an async way, use `connect`.
 /// ws_handle.block_connect();
 /// ```
-///
 pub fn new_monitor_subscriber() -> (MonitorLayer, WSHandle) {
   todo!();
 }
