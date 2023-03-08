@@ -1,9 +1,11 @@
 pub(crate) mod client_infos_store;
 mod monitor;
+mod net;
+use std::thread::spawn;
 
-use std::thread::{sleep, spawn};
+use net::WsListener;
 
-use io::net::run;
+use crate::net::DEFAULT_LISTEN_ADDR;
 
 fn main() {
   let handle = spawn(|| {
@@ -11,9 +13,16 @@ fn main() {
       .enable_all()
       .build()
       .unwrap()
-      .block_on(run("127.0.0.1:31813", move |_, rx| {
-        // tokio::spawn(future)
-      }))
+      .block_on(
+        async {
+          loop {
+            let listener = WsListener::new(DEFAULT_LISTEN_ADDR).await;
+            let mut handle = listener.accept().await.unwrap();
+            let msg = handle.next().await;
+            println!("{:?}", msg);
+          }
+        }
+      )
   });
   handle
     .join()

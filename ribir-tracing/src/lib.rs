@@ -1,7 +1,7 @@
 mod layer;
 mod log_writer;
 
-mod wslog;
+mod ws_handle;
 
 #[macro_export]
 macro_rules! error {
@@ -84,12 +84,14 @@ macro_rules! trace_span {
 }
 
 use layer::MonitorLayer;
+use log_writer::new_log_writer;
+use ws_handle::{SERVER_ADDR, add_remote_listener};
 #[cfg(not(feature = "info"))]
 pub use mock_proc_macros::instrument;
 #[cfg(feature = "info")]
 pub use tracing::instrument;
 
-pub struct WSHandle;
+pub use ws_handle::WSHandle;
 
 /// This function returns a tuple containing two parts:
 ///   - a new monitor layer of `tracing_subscriber`, use it to init a tracing
@@ -107,5 +109,7 @@ pub struct WSHandle;
 /// ws_handle.block_connect();
 /// ```
 pub fn new_monitor_subscriber() -> (MonitorLayer, WSHandle) {
-  todo!();
+  let (sender, mut consumers) = new_log_writer();
+  let (ws, _) = add_remote_listener(&mut consumers, SERVER_ADDR);
+  (MonitorLayer::new(sender), ws)
 }

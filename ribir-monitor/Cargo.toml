@@ -15,7 +15,3 @@ ribir = {github = "https://github.com/RibirX/Ribir.git", features = ["wgpu_gl"]}
 ribir-tracing = {path = "../ribir-tracing", features = ["trace"]}
 tokio = {version = "1.25.0", features = ["rt"]}
 tokio-tungstenite = "0.18.0"
-
-[lib]
-name = "io"
-path = "src/io/lib.rs"
